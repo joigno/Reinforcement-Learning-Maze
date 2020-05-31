@@ -1,4 +1,5 @@
 import logging
+import random, time
 from enum import Enum, auto
 
 import matplotlib.pyplot as plt
@@ -16,7 +17,9 @@ class Test(Enum):
     SHOW_MAZE_ONLY = auto()
     RANDOM_MODEL = auto()
     Q_LEARNING = auto()
+    Q_PHANTOM = auto()
     Q_ELIGIBILITY = auto()
+    Q_PHANTOM_ELIGIBILITY = auto()
     SARSA = auto()
     SARSA_ELIGIBILITY = auto()
     DEEP_Q = auto()
@@ -26,6 +29,24 @@ class Test(Enum):
 
 
 test = Test.SARSA_ELIGIBILITY  # which test to run
+
+def random_maze(height=8, width=8, wall_prob=0.35):
+    ll = []
+    for h in range(height):
+        l = []
+        for _ in range(width):
+            l.append( random.random()<wall_prob and 1 or 0 )
+            random.seed(random.randint(0,2**64-1))
+        if h == height-1:
+            l[-1] = 0 
+        ll.append(l)
+    ll[1][5] = 0
+    ll[-2][5] = 0
+    ll[4][-2] = 0
+    ll[-2][-2] = 1
+    ll[-1][-2] = 1
+    return np.array(ll)
+
 
 maze = np.array([
     [0, 1, 0, 0, 0, 0, 0, 0],
@@ -38,7 +59,15 @@ maze = np.array([
     [0, 0, 0, 0, 0, 1, 0, 0]
 ])  # 0 = free, 1 = occupied
 
+random.seed(123456)
+maze = random_maze(height=12,width=12)
+random.seed(int(time.time()))
+
+print (maze)
+
 game = Maze(maze)
+
+print(test)
 
 # only show the maze
 if test == Test.SHOW_MAZE_ONLY:
@@ -58,11 +87,25 @@ if test == Test.Q_LEARNING:
     h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
                              stop_at_convergence=True)
 
+# train using tabular Q-learning with Phantom memory
+if test == Test.Q_PHANTOM:
+    game.render(Render.TRAINING)
+    model = models.QPhantomModel(game, name="QPhantomModel")
+    h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
+                             stop_at_convergence=True)
+
 # train using tabular Q-learning and an eligibility trace (aka TD-lamba)
 if test == Test.Q_ELIGIBILITY:
     game.render(Render.TRAINING)
     model = models.QTableTraceModel(game)
-    h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
+    h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=400,
+                             stop_at_convergence=True)
+
+# train using tabular Q-learning, an eligibility trace (aka TD-lamba) and phantom memory
+if test == Test.Q_PHANTOM_ELIGIBILITY:
+    game.render(Render.TRAINING)
+    model = models.QPhantomTraceModel(game)
+    h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=400,
                              stop_at_convergence=True)
 
 # train using tabular SARSA learning
@@ -201,9 +244,11 @@ if test == Test.SPEED_TEST_2:
 
     plt.show()
 
-game.render(Render.MOVES)
+#game.render(Render.MOVES)
 # game.play(model, start_cell=(0, 0))
 # game.play(model, start_cell=(2, 5))
-game.play(model, start_cell=(4, 1))
+#game.play(model, start_cell=(4, 1))
+
+print(test)
 
 plt.show()  # must be placed here else the image disappears immediately at the end of the program

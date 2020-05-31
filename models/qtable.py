@@ -61,10 +61,11 @@ class QTableModel(AbstractModel):
             if not start_list:
                 start_list = self.environment.empty.copy()
             start_cell = random.choice(start_list)
+            start_status = self.environment.status()
             start_list.remove(start_cell)
 
             state = self.environment.reset(start_cell)
-            state = tuple(state.flatten())  # change np.ndarray to tuple so it can be used as dictionary key
+            state = tuple(state.flatten()+[Status.status_to_int(start_status)])  # change np.ndarray to tuple so it can be used as dictionary key
 
             while True:
                 # choose action epsilon greedy (off-policy, instead of only using the learned policy)
@@ -74,7 +75,7 @@ class QTableModel(AbstractModel):
                     action = self.predict(state)
 
                 next_state, reward, status = self.environment.step(action)
-                next_state = tuple(next_state.flatten())
+                next_state = tuple(next_state.flatten()+[Status.status_to_int(status)])
 
                 cumulative_reward += reward
 
@@ -112,21 +113,21 @@ class QTableModel(AbstractModel):
 
         return cumulative_reward_history, win_history, episode, datetime.now() - start_time
 
-    def q(self, state):
+    def q(self, state, status):
         """ Get q values for all actions for a certain state. """
         if type(state) == np.ndarray:
-            state = tuple(state.flatten())
-
+                state = tuple(state.flatten()+[Status.status_to_int(status)])
+                
         return np.array([self.Q.get((state, action), 0.0) for action in self.environment.actions])
 
-    def predict(self, state):
+    def predict(self, state, status=None):
         """ Policy: choose the action with the highest value from the Q-table.
             Random choice if multiple actions have the same (max) value.
 
             :param np.ndarray state: game state
             :return int: selected action
         """
-        q = self.q(state)
+        q = self.q(state,status)
 
         logging.debug("q[] = {}".format(q))
 

@@ -162,7 +162,7 @@ class QReplayNetworkModel(AbstractModel):
                 if np.random.random() < exploration_rate:
                     action = random.choice(self.environment.actions)
                 else:
-                    # q = experience.predict(state)
+                    # q = experience.predict(state)d
                     # action = random.choice(np.nonzero(q == np.max(q))[0])
                     action = self.predict(state)
 
@@ -210,14 +210,14 @@ class QReplayNetworkModel(AbstractModel):
 
         return cumulative_reward_history, win_history, episode, datetime.now() - start_time
 
-    def q(self, state):
+    def q(self, state, status=None):
         """ Get q values for all actions for a certain state. """
         if type(state) == tuple:
             state = np.array(state, ndmin=2)
 
         return self.model.predict(state)[0]
 
-    def predict(self, state):
+    def predict(self, state, status=None):
         """ Policy: choose the action with the highest value from the Q-table.
             Random choice if multiple actions have the same (max) value.
 

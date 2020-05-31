@@ -28,6 +28,14 @@ class Status(Enum):
     WIN = 0
     LOSE = 1
     PLAYING = 2
+    @classmethod
+    def status_to_int(_class,status):
+        switcher = {
+            _class.WIN: 0,
+            _class.LOSE: 1,
+            _class.PLAYING: 2,
+        }
+        return switcher[status]
 
 
 class Maze:
@@ -67,9 +75,11 @@ class Maze:
         self.__minimum_reward = -0.5 * self.maze.size  # stop game if accumulated reward is below this threshold
 
         nrows, ncols = self.maze.shape
+        print (nrows,ncols)
         self.cells = [(col, row) for col in range(ncols) for row in range(nrows)]
         self.empty = [(col, row) for col in range(ncols) for row in range(nrows) if self.maze[row, col] == Cell.EMPTY]
         self.__exit_cell = (ncols - 1, nrows - 1) if exit_cell is None else exit_cell
+        print('exit_cell = ', self.__exit_cell)
         self.empty.remove(self.__exit_cell)
 
         # Check for impossible maze layout
@@ -168,6 +178,9 @@ class Maze:
         logging.debug("action: {:10s} | reward: {: .2f} | status: {}".format(Action(action).name, reward, status))
         return state, reward, status
 
+    def status(self):
+        return self.__status()
+
     def __execute(self, action):
         """ Execute action and collect the reward or penalty.
 
@@ -265,10 +278,11 @@ class Maze:
         self.reset(start_cell)
 
         state = self.__observe()
+        status = self.__status()
 
         while True:
-            action = model.predict(state=state)
-            state, reward, status = self.step(action)
+            action = model.predict(state=state,status=status)
+            state, _, status = self.step(action)
             if status in (Status.WIN, Status.LOSE):
                 return status
 
@@ -289,8 +303,10 @@ class Maze:
         self.__render = previous  # restore previous rendering setting
 
         logging.info("won: {} | lost: {} | win rate: {:.5f}".format(win, lose, win / (win + lose)))
+        #print (model.phantom_memory)
 
-        result = True if lose == 0 else False
+        #result = True if lose == 0 else False
+        result = True if win / (win + lose) > 0.90 else False
 
         return result, win / (win + lose)
 
@@ -315,7 +331,7 @@ class Maze:
             self.__ax2.text(*self.__exit_cell, "Exit", ha="center", va="center", color="white")
 
             for cell in self.empty:
-                q = model.q(cell) if model is not None else [0, 0, 0, 0]
+                q = model.q(cell,Status.PLAYING) if model is not None else [0, 0, 0, 0]
                 a = np.nonzero(q == np.max(q))[0]
 
                 for action in a:
